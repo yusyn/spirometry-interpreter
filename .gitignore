@@ -1,1 +1,35 @@
-"venv/__pycache__/*.pyc.env.DS_Store*.csv*.sav.ipynb_checkpoints/" 
+# Virtual Environment
+venv/
+env/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data (large files - do not commit raw data)
+data/raw/*.csv
+data/raw/*.sav
+data/raw/*.zip
+
+# Models (can be large)
+models/*.pkl
+models/*.joblib
+models/*.json
+
+# IDE & OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Logs & temp
+*.log
+tmp/
+temp/
