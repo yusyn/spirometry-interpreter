@@ -1,33 +1,35 @@
 # Spirometry Interpreter
 
-وب‌اپلیکیشن تفسیر اسپیرومتری ریه با ترکیب قواعد بالینی (GOLD / ATS-ERS) و مدل‌های یادگیری ماشین (Random Forest + XGBoost) همراه با تفسیرپذیری SHAP.
+وب‌اپلیکیشن تفسیر اسپیرومتری ریه با ترکیب قواعد بالینی (GOLD + ECSC) و مدل XGBoost همراه با تفسیرپذیری SHAP.
 
-## ویژگی‌های اصلی (هدف نهایی)
-- تشخیص الگوی بیماری: انسدادی (Obstructive)، محدودیتی (Restrictive)، مختلط (Mixed)، نرمال
-- تعیین شدت بیماری
-- ورود دستی مقادیر FEV1، FVC و ...
-- آپلود تصویر برگه اسپیرومتری + OCR
-- تفسیر خروجی مدل با SHAP
-- تصمیم‌گیری هیبریدی (Rule-based + ML)
+## ویژگی‌های فعلی
+- تشخیص الگو: نرمال / انسدادی / محدودیتی / مختلط
+- تصمیم نهایی با مدل ML
+- لایه مکمل Rule (GOLD ratio + %predicted تقریبی + شدت)
+- توضیح SHAP برای هر پیش‌بینی
+- وب‌اپ Flask + API JSON
+- هشدار اختلاف مدل و Rule
 
 ## ساختار پروژه
 ```
 spirometry-interpreter/
-├── app/                      # وب‌اپلیکیشن Flask (هنوز خالی)
+├── app/                      # وب‌اپ Flask
 ├── data/
 │   ├── raw/                  # دیتاست خام (در گیت نیست)
-│   └── processed/            # داده تمیز آماده‌شده
-├── docs/                     # مستندات و قواعد بالینی
-├── models/                   # مدل‌های آموزش‌دیده (.joblib در گیت نیستند)
-├── notebooks/
+│   └── processed/            # داده تمیز
+├── docs/
+│   ├── guidelines.md
+│   └── results.md            # خلاصه نتایج برای گزارش
+├── models/                   # مدل‌های .joblib (محلی)
 ├── src/
-│   ├── rule_based/           # سیستم قاعده‌محور
-│   ├── ml_models/            # آموزش مدل‌ها و SHAP
-│   ├── hybrid_interpreter.py # هسته هیبریدی
-│   ├── ocr/                  # (آینده)
+│   ├── rule_based/
+│   ├── ml_models/
+│   ├── hybrid_interpreter.py
+│   ├── explain.py            # SHAP per-prediction
+│   ├── evaluate_hybrid.py
 │   └── utils/
 ├── prepare_data.py
-├── hybrid_interpreter.py     # نقطه ورود سریع از ریشه
+├── run.py
 ├── requirements.txt
 └── README.md
 ```
@@ -45,45 +47,48 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## اجرای مرحله‌به‌مرحله (وضعیت فعلی)
+## اجرا
 
-### ۱. آماده‌سازی داده (یک‌بار)
-دیتاست خام را در `data/raw/` قرار دهید، سپس:
-```bash
-python prepare_data.py
-```
-
-### ۲. آموزش مدل XGBoost (یک‌بار یا بعد از تغییر داده)
+### آموزش مدل (یک‌بار)
 ```bash
 python src/ml_models/train_xgboost.py
 ```
-این دستور مدل و Encoderها را در `models/` ذخیره می‌کند.
 
-### ۳. تست سیستم قاعده‌محور
+### وب‌اپ
 ```bash
-python src/rule_based/interpreter.py
+python run.py
+```
+سپس: http://127.0.0.1:5000
+
+### API
+```bash
+curl -X POST http://127.0.0.1:5000/api/interpret ^
+  -H "Content-Type: application/json" ^
+  -d "{\"fev1\":2.1,\"fvc\":3.5,\"age\":55,\"sex\":\"Male\",\"height\":170}"
 ```
 
-### ۴. تست تفسیر هیبریدی
+سلامت سرویس:
 ```bash
-python src/hybrid_interpreter.py
-# یا
-python hybrid_interpreter.py
+curl http://127.0.0.1:5000/api/health
+```
+
+### ارزیابی هیبریدی
+```bash
+python src/evaluate_hybrid.py
 ```
 
 ## وضعیت پیشرفت
-- [x] ساختار اولیه پروژه
-- [x] دانلود و آماده‌سازی دیتاست NHANES (نسخه تمیز)
-- [x] سیستم Rule-based نسخه ۲ (GOLD + آستانه ساده FVC)
-- [x] آموزش Random Forest و XGBoost (XGBoost بهتر: Macro F1 ≈ 0.83)
-- [x] SHAP (نمودار اهمیت ویژگی‌ها)
-- [x] هسته هیبریدی اولیه (Rule + XGBoost)
-- [ ] بهبود Rule-based با LLN / معادلات GLI و شدت بیماری
-- [ ] بهبود منطق هیبریدی و ارزیابی روی داده تست
-- [ ] رابط کاربری Flask
+- [x] داده NHANES و برچسب‌زنی
+- [x] Random Forest و XGBoost (انتخاب نهایی: XGBoost، Macro F1 ≈ 0.83)
+- [x] Rule-based v3 (GOLD + ECSC %predicted + شدت)
+- [x] هیبریدی با نقش مکمل برای Rule
+- [x] SHAP کلی + SHAP برای هر پیش‌بینی در UI
+- [x] وب‌اپ Flask
+- [x] API JSON
+- [x] مستند نتایج (`docs/results.md`)
 - [ ] OCR برگه اسپیرومتری
-- [ ] تست و مستندسازی نهایی
+- [ ] تست‌های واحد گسترده‌تر و گزارش نهایی کامل
 
 ## نکات
-- فایل‌های `.joblib` مدل در گیت commit نمی‌شوند؛ باید محلی آموزش داده شوند.
-- دیتاست خام NHANES هم در گیت نیست.
+- فایل‌های `.joblib` و دیتاست خام در گیت نیستند.
+- جزئیات نتایج در `docs/results.md` آمده است.
