@@ -1,37 +1,64 @@
 # قواعد بالینی تفسیر اسپیرومتری
 
-این فایل خلاصه دستورالعمل‌های GOLD و ATS/ERS برای تفسیر اسپیرومتری است.
+## نقش در این پروژه
 
-## منابع اصلی
-- GOLD Guidelines (Global Initiative for Chronic Obstructive Lung Disease)
-- ATS/ERS Technical Standards on Interpretive Strategies for Routine Lung Function Tests (2021)
-- معادلات مرجع GLI Global
+سیستم **قاعده‌محور لایه مکمل** است، نه تصمیم‌گیرنده نهایی.
 
-## الگوهای اصلی
+- تصمیم نهایی الگوی بیماری: مدل یادگیری ماشین (XGBoost)
+- Rule: گزارش معیار GOLD + مقادیر تقریبی %predicted + شدت تقریبی
+- در صورت اختلاف مدل و Rule: پرچم «نیاز به بررسی پزشک»
 
-### ۱. الگوی انسدادی (Obstructive)
-- معیار GOLD: FEV1/FVC < 0.70 (پس از برونکودیلاتور)
-- معیار ATS/ERS: FEV1/FVC < LLN (Lower Limit of Normal)
+## منابع
 
-### ۲. الگوی محدودیتی (Restrictive)
-- FVC < LLN و FEV1/FVC ≥ LLN (یا نرمال/بالا)
-- برای تأیید قطعی نیاز به اندازه‌گیری TLC است
+- GOLD (Global Initiative for Chronic Obstructive Lung Disease)
+- ATS/ERS interpretive strategies
+- معادلات مرجع تقریبی ECSC / Quanjer 1993 (برای %predicted)
 
-### ۳. الگوی مختلط (Mixed)
-- هم FEV1/FVC < LLN و هم FVC < LLN
+> نسخه کامل‌تر آینده می‌تواند از معادلات GLI-2012 استفاده کند.
 
-## شدت انسداد (بر اساس FEV1 % predicted)
-| شدت              | FEV1 % predicted |
-|------------------|------------------|
-| Mild             | ≥ 70%            |
-| Moderate         | 60–69%           |
-| Moderately severe| 50–59%           |
-| Severe           | 35–49%           |
-| Very severe      | < 35%            |
+## معیار انسداد (Obstructive)
 
-> این مقادیر باید با توجه به دستورالعمل نهایی پروژه دقیق‌تر شود.
+- **GOLD (پیاده‌سازی فعلی):** FEV1/FVC < 0.70
+- ATS/ERS ترجیح می‌دهد LLN به‌جای نسبت ثابت (هنوز پیاده نشده)
 
-## کارهای باقی‌مانده
-- [ ] استخراج دقیق معادلات GLI Global
-- [ ] پیاده‌سازی محاسبه predicted values و LLN
-- [ ] مقایسه معیار fixed ratio در مقابل LLN
+## سوءظن Restrictive
+
+- نسبت FEV1/FVC نرمال یا بالا
+- و FVC %predicted < 80%
+- تأیید قطعی نیاز به اندازه‌گیری TLC دارد
+
+## Mixed
+
+- نسبت < 0.70 و FVC %predicted < 80% (تقریبی)
+
+## شدت انسداد (GOLD)
+
+بر اساس FEV1 %predicted:
+
+| شدت | FEV1 %predicted |
+|-----|-----------------|
+| Mild (GOLD 1) | ≥ 80% |
+| Moderate (GOLD 2) | 50–79% |
+| Severe (GOLD 3) | 30–49% |
+| Very Severe (GOLD 4) | < 30% |
+
+## معادلات ECSC/Quanjer 1993 (پیاده‌سازی فعلی)
+
+قد (H) به **متر**، سن (A) به سال:
+
+**مرد:**
+- FEV1 = 4.301×H − 0.0290×A − 2.492
+- FVC  = 5.761×H − 0.0260×A − 4.343
+
+**زن:**
+- FEV1 = 3.953×H − 0.0251×A − 2.604
+- FVC  = 4.433×H − 0.0260×A − 2.892
+
+%predicted = (measured / predicted) × 100
+
+## محدودیت‌ها
+
+- ECSC برای همه نژادها و سنین ایده‌آل نیست
+- LLN دقیق پیاده نشده
+- Restrictive بدون TLC قطعی نیست
+- Rule جایگزین مدل نیست
