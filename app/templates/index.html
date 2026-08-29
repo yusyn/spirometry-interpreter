@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>تفسیر اسپیرومتری</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>تفسیر اسپیرومتری ریه</h1>
+      <p class="subtitle">
+        سیستم هیبریدی: مدل یادگیری ماشین + قواعد بالینی GOLD / ECSC
+      </p>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="messages">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <section class="card">
+      <h2>ورود مقادیر</h2>
+      <form method="post" class="form-grid">
+        <label>
+          FEV1 (لیتر) *
+          <input type="number" step="0.01" min="0" name="fev1" value="{{ form.fev1 }}" required />
+        </label>
+        <label>
+          FVC (لیتر) *
+          <input type="number" step="0.01" min="0" name="fvc" value="{{ form.fvc }}" required />
+        </label>
+        <label>
+          سن (سال) *
+          <input type="number" min="1" max="120" name="age" value="{{ form.age }}" required />
+        </label>
+        <label>
+          قد (سانتی‌متر) *
+          <input type="number" step="0.1" min="50" max="250" name="height" value="{{ form.height }}" required />
+        </label>
+        <label>
+          وزن (کیلوگرم)
+          <input type="number" step="0.1" min="1" name="weight" value="{{ form.weight }}" />
+        </label>
+        <label>
+          جنس *
+          <select name="sex">
+            <option value="Male" {% if form.sex == 'Male' %}selected{% endif %}>مرد</option>
+            <option value="Female" {% if form.sex == 'Female' %}selected{% endif %}>زن</option>
+          </select>
+        </label>
+        <label>
+          نژاد (اختیاری)
+          <input type="text" name="race" value="{{ form.race }}" placeholder="Other" />
+        </label>
+        <div class="actions">
+          <button type="submit">تفسیر کن</button>
+        </div>
+      </form>
+    </section>
+
+    {% if result %}
+    <section class="card result">
+      <h2>نتیجه نهایی</h2>
+
+      <div class="final-box {% if result.needs_physician_review %}review{% else %}ok{% endif %}">
+        <div class="final-pattern">{{ result.final_pattern }}</div>
+        <div class="meta">
+          منبع تصمیم: مدل یادگیری ماشین |
+          اطمینان: {{ result.confidence }} |
+          توافق با Rule: {{ result.agreement }}
+        </div>
+        {% if result.needs_physician_review %}
+          <div class="review-flag">⚠ مدل و قواعد بالینی هم‌نظر نیستند — بررسی پزشک توصیه می‌شود</div>
+        {% endif %}
+      </div>
+
+      <div class="two-col">
+        <div>
+          <h3>مدل (XGBoost)</h3>
+          <ul>
+            <li>الگو: <strong>{{ result.ml_model.pattern }}</strong></li>
+            <li>احتمال برتر: {{ result.ml_model.top_probability }}</li>
+          </ul>
+          <table class="probs">
+            <thead>
+              <tr><th>کلاس</th><th>احتمال</th></tr>
+            </thead>
+            <tbody>
+              {% for cls, p in result.ml_model.probabilities.items() %}
+              <tr>
+                <td>{{ cls }}</td>
+                <td>
+                  <div class="bar-wrap">
+                    <div class="bar" style="width: {{ (p * 100)|round(1) }}%"></div>
+                    <span>{{ p }}</span>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <h3>قواعد بالینی (مکمل)</h3>
+          <ul>
+            <li>الگوی Rule: <strong>{{ result.rule_based.pattern }}</strong></li>
+            <li>نسبت FEV1/FVC: {{ result.rule_based.ratio }}</li>
+            <li>FEV1 %predicted: {{ result.rule_based.fev1_pct_predicted if result.rule_based.fev1_pct_predicted is not none else '—' }}</li>
+            <li>FVC %predicted: {{ result.rule_based.fvc_pct_predicted if result.rule_based.fvc_pct_predicted is not none else '—' }}</li>
+            <li>شدت: {{ result.rule_based.severity if result.rule_based.severity else '—' }}</li>
+            <li>روش: {{ result.rule_based.method }}</li>
+          </ul>
+          <p class="note">{{ result.rule_based.note }}</p>
+        </div>
+      </div>
+
+      <h3>مقادیر ورودی</h3>
+      <ul class="inputs">
+        <li>FEV1: {{ result.input_values.fev1 }} L</li>
+        <li>FVC: {{ result.input_values.fvc }} L</li>
+        <li>نسبت: {{ result.input_values.ratio }}</li>
+        <li>سن: {{ result.input_values.age }}</li>
+        <li>جنس: {{ result.input_values.sex }}</li>
+        <li>قد: {{ result.input_values.height }} cm</li>
+        <li>وزن: {{ result.input_values.weight }} kg</li>
+        <li>BMI: {{ result.input_values.bmi }}</li>
+      </ul>
+    </section>
+    {% endif %}
+
+    <footer>
+      <p>پروژه لیسانس — تفسیر اسپیرومتری هیبریدی | تصمیم نهایی با مدل، Rule لایه مکمل بالینی</p>
+    </footer>
+  </div>
+</body>
+</html>
