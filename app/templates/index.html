@@ -11,7 +11,7 @@
     <header>
       <h1>تفسیر اسپیرومتری ریه</h1>
       <p class="subtitle">
-        سیستم هیبریدی: مدل یادگیری ماشین + قواعد بالینی GOLD / ECSC
+        سیستم هیبریدی: مدل یادگیری ماشین + قواعد بالینی GOLD / ECSC + توضیح SHAP
       </p>
     </header>
 
@@ -121,6 +121,37 @@
           <p class="note">{{ result.rule_based.note }}</p>
         </div>
       </div>
+
+      <h3>توضیح SHAP (چرا مدل این تصمیم را گرفته؟)</h3>
+      {% if result.shap_explanation.error %}
+        <p class="note">محاسبه SHAP ممکن نشد: {{ result.shap_explanation.error }}</p>
+      {% elif result.shap_explanation.top_features %}
+        <p class="note">{{ result.shap_explanation.note }}</p>
+        <table class="probs shap-table">
+          <thead>
+            <tr>
+              <th>ویژگی</th>
+              <th>مقدار</th>
+              <th>اثر SHAP</th>
+              <th>جهت</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in result.shap_explanation.top_features %}
+            <tr>
+              <td>{{ item.feature_fa }}</td>
+              <td>{{ item.value }}</td>
+              <td>{{ item.shap_value }}</td>
+              <td class="{% if item.direction == 'افزاینده' %}dir-up{% else %}dir-down{% endif %}">
+                {{ item.direction }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="note">توضیح SHAP در دسترس نیست.</p>
+      {% endif %}
 
       <h3>مقادیر ورودی</h3>
       <ul class="inputs">
