@@ -12,9 +12,8 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.metrics import classification_report, confusion_matrix, f1_score
+from sklearn.metrics import classification_report, f1_score
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -24,7 +23,9 @@ from src.rule_based.interpreter import interpret_spirometry
 
 MODELS_DIR = PROJECT_ROOT / "models"
 DATA_PATH = PROJECT_ROOT / "data" / "processed" / "spirometry_clean.csv"
-FEATURES = [
+
+# نام ستون‌ها باید دقیقاً با زمان آموزش مدل یکی باشد
+FEATURE_NAMES = [
     "Sex",
     "Race",
     "Age",
@@ -62,26 +63,15 @@ def prepare_test_set(le_sex, le_race, le_pattern):
     """همان تقسیم‌بندی train/test زمان آموزش (random_state=42, stratify)"""
     df = pd.read_csv(DATA_PATH)
 
-    # برای Rule-based به برچسب متنی Sex نیاز داریم؛ قبل از encode نگه می‌داریم
     sex_text = df["Sex"].copy()
     race_text = df["Race"].copy()
 
-    df["Sex_enc"] = le_sex.transform(df["Sex"])
-    df["Race_enc"] = le_race.transform(df["Race"])
+    # encode با همان نام ستون‌های آموزش تا XGBoost feature_names mismatch ندهد
+    df["Sex"] = le_sex.transform(df["Sex"])
+    df["Race"] = le_race.transform(df["Race"])
     y = le_pattern.transform(df["pattern"])
 
-    feature_cols = [
-        "Sex_enc",
-        "Race_enc",
-        "Age",
-        "Height",
-        "Weight",
-        "BMI",
-        "Baseline_FEV1_L",
-        "Baseline_FVC_L",
-        "Baseline_FEV1_FVC_Ratio",
-    ]
-    X = df[feature_cols]
+    X = df[FEATURE_NAMES]
 
     indices = np.arange(len(df))
     _, idx_test, _, y_test = train_test_split(
@@ -94,7 +84,7 @@ def prepare_test_set(le_sex, le_race, le_pattern):
     test_df["y_true"] = y_test
     test_df["y_true_label"] = le_pattern.inverse_transform(y_test)
 
-    X_test = test_df[feature_cols]
+    X_test = test_df[FEATURE_NAMES]
     return test_df, X_test, y_test
 
 
@@ -133,48 +123,36 @@ def main():
     print("۲. پیش‌بینی Rule-based (ممکن است کمی طول بکشد)...")
     y_pred_rule_label = test_df.apply(predict_rule, axis=1).values
 
-    # برچسب‌های Rule که در کلاس‌های مدل نیستند (مثلاً Error) را مدیریت می‌کنیم
     valid_mask = np.isin(y_pred_rule_label, classes)
     if not valid_mask.all():
-        n_invalid = (~valid_mask).sum()
+        n_invalid = int((~valid_mask).sum())
         print(f"  هشدار: {n_invalid} پیش‌بینی Rule خارج از کلاس‌های استاندارد بود.")
-
-    y_pred_rule = np.array(
-        [
-            le_pattern.transform([lab])[0] if lab in classes else -1
-            for lab in y_pred_rule_label
-        ]
-    )
 
     # --- هیبریدی: موافق → همان؛ مخالف → مدل ---
     print("۳. ساخت پیش‌بینی هیبریدی...")
     agree = y_pred_rule_label == y_pred_ml_label
-    y_pred_hybrid_label = np.where(agree, y_pred_ml_label, y_pred_ml_label)
     # منطق فعلی: در اختلاف هم مدل را می‌گیریم → در عمل = خود مدل
-    # این را صریح گزارش می‌کنیم؛ بعداً می‌توان منطق بهتری گذاشت
     y_pred_hybrid = y_pred_ml.copy()
 
-    agreement_rate = agree.mean()
+    agreement_rate = float(agree.mean())
     print(f"\nنرخ توافق Rule و ML: {agreement_rate:.1%}")
-    print(f"تعداد موافق: {agree.sum()} | تعداد مخالف: {(~agree).sum()}")
+    print(f"تعداد موافق: {int(agree.sum())} | تعداد مخالف: {int((~agree).sum())}")
 
-    # وقتی مخالف‌اند، کدام درست‌تر است؟
     disagree_idx = np.where(~agree)[0]
     if len(disagree_idx) > 0:
         true_lab = test_df["y_true_label"].values[disagree_idx]
         rule_lab = y_pred_rule_label[disagree_idx]
         ml_lab = y_pred_ml_label[disagree_idx]
 
-        rule_correct = (rule_lab == true_lab).sum()
-        ml_correct = (ml_lab == true_lab).sum()
-        both_wrong = ((rule_lab != true_lab) & (ml_lab != true_lab)).sum()
+        rule_correct = int((rule_lab == true_lab).sum())
+        ml_correct = int((ml_lab == true_lab).sum())
+        both_wrong = int(((rule_lab != true_lab) & (ml_lab != true_lab)).sum())
 
         print("\nدر موارد اختلاف:")
         print(f"  Rule درست بوده: {rule_correct}")
         print(f"  ML درست بوده  : {ml_correct}")
         print(f"  هر دو غلط     : {both_wrong}")
 
-        # جدول خلاصه اختلاف‌ها
         print("\nنمونه اختلاف‌ها (حداکثر ۱۵ مورد):")
         sample_n = min(15, len(disagree_idx))
         for i in disagree_idx[:sample_n]:
@@ -192,13 +170,9 @@ def main():
         print(name)
         print("=" * 60)
         if labels_encoded:
-            # فیلتر کردن پیش‌بینی‌های نامعتبر (-1)
-            mask = y_pred >= 0
-            yt, yp = y_true[mask], y_pred[mask]
-            print(classification_report(yt, yp, target_names=classes, digits=3))
-            macro = f1_score(yt, yp, average="macro")
+            print(classification_report(y_true, y_pred, target_names=classes, digits=3))
+            macro = f1_score(y_true, y_pred, average="macro")
         else:
-            # y_pred برچسب متنی
             mask = np.isin(y_pred, classes)
             yt = le_pattern.inverse_transform(y_true[mask])
             yp = y_pred[mask]
