@@ -4,6 +4,7 @@
 نقش‌ها:
   - مدل XGBoost: تصمیم‌گیرنده نهایی الگوی بیماری
   - Rule-based: لایه بالینی مکمل (GOLD + %predicted تقریبی ECSC)
+  - SHAP: توضیح ویژگی‌های مؤثر روی تصمیم مدل
 
 در صورت اختلاف مدل و Rule، نتیجه نهایی همان مدل است و
 پرچم «نیاز به بررسی پزشک» فعال می‌شود.
@@ -18,6 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.explain import explain_prediction
 from src.rule_based.interpreter import interpret_spirometry
 
 MODELS_DIR = PROJECT_ROOT / "models"
@@ -70,13 +72,12 @@ def hybrid_interpret(
 
     تصمیم نهایی = خروجی مدل ML
     Rule فقط گزارش مکمل بالینی می‌دهد.
+    SHAP توضیح می‌دهد کدام ویژگی‌ها روی تصمیم مدل اثر داشته‌اند.
     """
     _load_artifacts()
 
-    # ۱. لایه Rule (مکمل)
     rule_result = interpret_spirometry(fev1, fvc, age, sex, height)
 
-    # ۲. ورودی مدل
     try:
         sex_encoded = int(_le_sex.transform([sex])[0])
     except Exception:
@@ -94,23 +95,19 @@ def hybrid_interpret(
 
     ratio = float(fev1) / float(fvc) if fvc and fvc > 0 else 0.0
 
-    features = np.array(
-        [
-            [
-                sex_encoded,
-                race_encoded,
-                age,
-                height,
-                weight,
-                bmi,
-                fev1,
-                fvc,
-                ratio,
-            ]
-        ]
-    )
+    feature_row = [
+        sex_encoded,
+        race_encoded,
+        age,
+        height,
+        weight,
+        bmi,
+        fev1,
+        fvc,
+        ratio,
+    ]
+    features = np.array([feature_row])
 
-    # ۳. پیش‌بینی مدل (تصمیم نهایی)
     ml_pred_encoded = int(_model.predict(features)[0])
     ml_pattern = str(_le_pattern.inverse_transform([ml_pred_encoded])[0])
 
@@ -121,7 +118,17 @@ def hybrid_interpret(
     }
     ml_confidence = round(float(max(probabilities)), 3)
 
-    # ۴. مقایسه با Rule (فقط برای شفافیت)
+    # SHAP برای کلاس پیش‌بینی‌شده
+    try:
+        shap_top = explain_prediction(
+            _model, feature_row, ml_pred_encoded, top_k=5
+        )
+    except Exception as exc:  # noqa: BLE001
+        shap_top = []
+        shap_error = str(exc)
+    else:
+        shap_error = None
+
     rule_pattern = rule_result.get("pattern")
     agree = rule_pattern == ml_pattern
 
@@ -134,11 +141,8 @@ def hybrid_interpret(
         review_flag = True
         confidence_label = "متوسط - نیاز به بررسی پزشک"
 
-    # تصمیم نهایی همیشه مدل است
-    final_pattern = ml_pattern
-
     return {
-        "final_pattern": final_pattern,
+        "final_pattern": ml_pattern,
         "decision_source": "ml_model",
         "agreement": agreement,
         "needs_physician_review": review_flag,
@@ -147,6 +151,14 @@ def hybrid_interpret(
             "pattern": ml_pattern,
             "probabilities": prob_dict,
             "top_probability": ml_confidence,
+        },
+        "shap_explanation": {
+            "top_features": shap_top,
+            "error": shap_error,
+            "note": (
+                "مقادیر SHAP نشان می‌دهند هر ویژگی چقدر به سمت کلاس پیش‌بینی‌شده "
+                "هل داده (افزاینده) یا از آن دور کرده (کاهنده)."
+            ),
         },
         "rule_based": {
             "pattern": rule_pattern,
@@ -179,26 +191,21 @@ if __name__ == "__main__":
         {"fev1": 1.5, "fvc": 2.8, "age": 68, "sex": "Male", "height": 175},
     ]
 
-    print("نتایج تست تابع هیبریدی (نسخه مکمل)\n")
+    print("نتایج تست تابع هیبریدی + SHAP\n")
     for i, case in enumerate(test_cases, 1):
         try:
             result = hybrid_interpret(**case)
             print(f"تست {i}:")
-            print(
-                f"  ورودی         : FEV1={case['fev1']}, FVC={case['fvc']}, "
-                f"Age={case['age']}, Sex={case['sex']}, Height={case['height']}"
-            )
-            print(f"  نتیجه نهایی  : {result['final_pattern']}  (منبع: مدل)")
-            print(f"  اطمینان      : {result['confidence']}")
+            print(f"  نتیجه نهایی  : {result['final_pattern']}")
             print(f"  توافق با Rule: {result['agreement']}")
-            print(f"  بررسی پزشک   : {result['needs_physician_review']}")
-            print(f"  مدل          : {result['ml_model']['pattern']} | {result['ml_model']['probabilities']}")
-            rb = result["rule_based"]
-            print(
-                f"  Rule          : {rb['pattern']} | ratio={rb['ratio']} | "
-                f"FEV1%={rb['fev1_pct_predicted']} | FVC%={rb['fvc_pct_predicted']} | "
-                f"severity={rb['severity']}"
-            )
+            print("  SHAP (ویژگی‌های مؤثر):")
+            for item in result["shap_explanation"]["top_features"]:
+                print(
+                    f"    - {item['feature_fa']}: value={item['value']}, "
+                    f"SHAP={item['shap_value']} ({item['direction']})"
+                )
+            if result["shap_explanation"]["error"]:
+                print(f"  خطای SHAP: {result['shap_explanation']['error']}")
         except FileNotFoundError as e:
             print(f"تست {i}: خطا — {e}")
             break
