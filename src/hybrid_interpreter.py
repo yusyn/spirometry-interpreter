@@ -1,6 +1,12 @@
 """
 تفسیر هیبریدی اسپیرومتری
-ترکیب سیستم قاعده‌محور (GOLD) + مدل XGBoost
+
+نقش‌ها:
+  - مدل XGBoost: تصمیم‌گیرنده نهایی الگوی بیماری
+  - Rule-based: لایه بالینی مکمل (GOLD + %predicted تقریبی ECSC)
+
+در صورت اختلاف مدل و Rule، نتیجه نهایی همان مدل است و
+پرچم «نیاز به بررسی پزشک» فعال می‌شود.
 """
 import sys
 from pathlib import Path
@@ -8,7 +14,6 @@ from pathlib import Path
 import joblib
 import numpy as np
 
-# اضافه کردن ریشه پروژه به sys.path تا importها از هر جا کار کنند
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -17,7 +22,6 @@ from src.rule_based.interpreter import interpret_spirometry
 
 MODELS_DIR = PROJECT_ROOT / "models"
 
-# بارگذاری تنبل (lazy) مدل‌ها
 _model = None
 _le_pattern = None
 _le_sex = None
@@ -25,7 +29,6 @@ _le_race = None
 
 
 def _load_artifacts():
-    """بارگذاری مدل و encoderها فقط یک‌بار"""
     global _model, _le_pattern, _le_sex, _le_race
 
     if _model is not None:
@@ -65,24 +68,15 @@ def hybrid_interpret(
     """
     تفسیر هیبریدی اسپیرومتری.
 
-    پارامترها:
-        fev1, fvc: مقادیر به لیتر
-        age: سن به سال
-        sex: "Male" یا "Female"
-        height: قد به سانتی‌متر
-        weight: وزن به کیلوگرم (اختیاری)
-        bmi: در صورت نبودن از قد و وزن محاسبه می‌شود
-        race: برچسب نژاد مطابق دیتاست (اختیاری)
-
-    خروجی:
-        dict شامل نتیجه نهایی، توافق دو روش، و جزئیات هر کدام
+    تصمیم نهایی = خروجی مدل ML
+    Rule فقط گزارش مکمل بالینی می‌دهد.
     """
     _load_artifacts()
 
-    # ۱. سیستم قاعده‌محور
+    # ۱. لایه Rule (مکمل)
     rule_result = interpret_spirometry(fev1, fvc, age, sex, height)
 
-    # ۲. آماده‌سازی ورودی مدل
+    # ۲. ورودی مدل
     try:
         sex_encoded = int(_le_sex.transform([sex])[0])
     except Exception:
@@ -116,7 +110,7 @@ def hybrid_interpret(
         ]
     )
 
-    # ۳. پیش‌بینی مدل
+    # ۳. پیش‌بینی مدل (تصمیم نهایی)
     ml_pred_encoded = int(_model.predict(features)[0])
     ml_pattern = str(_le_pattern.inverse_transform([ml_pred_encoded])[0])
 
@@ -125,34 +119,44 @@ def hybrid_interpret(
         cls: round(float(p), 3)
         for cls, p in zip(_le_pattern.classes_, probabilities)
     }
+    ml_confidence = round(float(max(probabilities)), 3)
 
-    # ۴. ترکیب نتایج
+    # ۴. مقایسه با Rule (فقط برای شفافیت)
     rule_pattern = rule_result.get("pattern")
+    agree = rule_pattern == ml_pattern
 
-    if rule_pattern == ml_pattern:
-        final_pattern = rule_pattern
+    if agree:
         agreement = "موافق"
-        confidence = "بالا"
+        review_flag = False
+        confidence_label = "بالا" if ml_confidence >= 0.7 else "متوسط"
     else:
-        # در نسخه فعلی در صورت اختلاف، مدل را ترجیح می‌دهیم
-        # (چون از داده واقعی یاد گرفته؛ بعداً می‌توان وزن‌دهی هوشمندتر کرد)
-        final_pattern = ml_pattern
         agreement = "مخالف"
-        confidence = "متوسط - نیاز به بررسی پزشک"
+        review_flag = True
+        confidence_label = "متوسط - نیاز به بررسی پزشک"
+
+    # تصمیم نهایی همیشه مدل است
+    final_pattern = ml_pattern
 
     return {
         "final_pattern": final_pattern,
+        "decision_source": "ml_model",
         "agreement": agreement,
-        "confidence": confidence,
-        "rule_based": {
-            "pattern": rule_pattern,
-            "ratio": rule_result.get("fev1_fvc_ratio"),
-            "method": rule_result.get("method"),
-            "confidence": rule_result.get("confidence"),
-        },
+        "needs_physician_review": review_flag,
+        "confidence": confidence_label,
         "ml_model": {
             "pattern": ml_pattern,
             "probabilities": prob_dict,
+            "top_probability": ml_confidence,
+        },
+        "rule_based": {
+            "pattern": rule_pattern,
+            "ratio": rule_result.get("fev1_fvc_ratio"),
+            "fev1_pct_predicted": rule_result.get("fev1_pct_predicted"),
+            "fvc_pct_predicted": rule_result.get("fvc_pct_predicted"),
+            "severity": rule_result.get("severity"),
+            "confidence": rule_result.get("confidence"),
+            "method": rule_result.get("method"),
+            "note": rule_result.get("note"),
         },
         "input_values": {
             "fev1": fev1,
@@ -175,21 +179,26 @@ if __name__ == "__main__":
         {"fev1": 1.5, "fvc": 2.8, "age": 68, "sex": "Male", "height": 175},
     ]
 
-    print("نتایج تست تابع هیبریدی\n")
+    print("نتایج تست تابع هیبریدی (نسخه مکمل)\n")
     for i, case in enumerate(test_cases, 1):
         try:
             result = hybrid_interpret(**case)
             print(f"تست {i}:")
             print(
-                f"  ورودی      : FEV1={case['fev1']}, FVC={case['fvc']}, Age={case['age']}"
+                f"  ورودی         : FEV1={case['fev1']}, FVC={case['fvc']}, "
+                f"Age={case['age']}, Sex={case['sex']}, Height={case['height']}"
             )
+            print(f"  نتیجه نهایی  : {result['final_pattern']}  (منبع: مدل)")
+            print(f"  اطمینان      : {result['confidence']}")
+            print(f"  توافق با Rule: {result['agreement']}")
+            print(f"  بررسی پزشک   : {result['needs_physician_review']}")
+            print(f"  مدل          : {result['ml_model']['pattern']} | {result['ml_model']['probabilities']}")
+            rb = result["rule_based"]
             print(
-                f"  نتیجه نهایی : {result['final_pattern']} (اطمینان: {result['confidence']})"
+                f"  Rule          : {rb['pattern']} | ratio={rb['ratio']} | "
+                f"FEV1%={rb['fev1_pct_predicted']} | FVC%={rb['fvc_pct_predicted']} | "
+                f"severity={rb['severity']}"
             )
-            print(f"  توافق       : {result['agreement']}")
-            print(f"  قاعده‌محور  : {result['rule_based']['pattern']}")
-            print(f"  مدل ML     : {result['ml_model']['pattern']}")
-            print(f"  احتمالات   : {result['ml_model']['probabilities']}")
         except FileNotFoundError as e:
             print(f"تست {i}: خطا — {e}")
             break
