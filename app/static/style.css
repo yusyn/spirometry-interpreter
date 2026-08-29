@@ -221,6 +221,20 @@ ul {
   font-size: 0.9rem;
 }
 
+.dir-up {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.dir-down {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.shap-table td {
+  vertical-align: middle;
+}
+
 footer {
   margin-top: 20px;
   text-align: center;
