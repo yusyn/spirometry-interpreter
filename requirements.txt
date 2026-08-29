@@ -10,3 +10,4 @@ pytesseract
 matplotlib
 seaborn
 joblib
+imbalanced-learn
