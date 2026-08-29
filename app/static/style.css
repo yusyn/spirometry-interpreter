@@ -58,6 +58,33 @@ header h1 {
   font-size: 1.15rem;
 }
 
+.sample-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.sample-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.sample-btn {
+  background: #eff6ff;
+  color: var(--primary-dark);
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.sample-btn:hover {
+  background: #dbeafe;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -98,7 +125,7 @@ select:focus {
   margin-top: 4px;
 }
 
-button {
+button[type="submit"] {
   background: var(--primary);
   color: #fff;
   border: none;
@@ -107,7 +134,7 @@ button {
   cursor: pointer;
 }
 
-button:hover {
+button[type="submit"]:hover {
   background: var(--primary-dark);
 }
 
@@ -149,6 +176,12 @@ button:hover {
   font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: 4px;
+}
+
+.final-pattern .en {
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-weight: 500;
 }
 
 .meta {
