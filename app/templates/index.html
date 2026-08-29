@@ -27,37 +27,43 @@
 
     <section class="card">
       <h2>ورود مقادیر</h2>
-      <form method="post" class="form-grid">
+      <div class="sample-row">
+        <span class="sample-label">نمونه سریع:</span>
+        <button type="button" class="sample-btn" data-fev1="2.1" data-fvc="3.5" data-age="55" data-sex="Male" data-height="170" data-weight="78">انسدادی نمونه</button>
+        <button type="button" class="sample-btn" data-fev1="3.2" data-fvc="3.8" data-age="30" data-sex="Female" data-height="165" data-weight="60">نرمال نمونه</button>
+        <button type="button" class="sample-btn" data-fev1="1.5" data-fvc="2.8" data-age="68" data-sex="Male" data-height="175" data-weight="80">مورد اختلاف</button>
+      </div>
+      <form method="post" class="form-grid" id="spirometry-form">
         <label>
           FEV1 (لیتر) *
-          <input type="number" step="0.01" min="0" name="fev1" value="{{ form.fev1 }}" required />
+          <input type="number" step="0.01" min="0" name="fev1" id="fev1" value="{{ form.fev1 }}" required />
         </label>
         <label>
           FVC (لیتر) *
-          <input type="number" step="0.01" min="0" name="fvc" value="{{ form.fvc }}" required />
+          <input type="number" step="0.01" min="0" name="fvc" id="fvc" value="{{ form.fvc }}" required />
         </label>
         <label>
           سن (سال) *
-          <input type="number" min="1" max="120" name="age" value="{{ form.age }}" required />
+          <input type="number" min="1" max="120" name="age" id="age" value="{{ form.age }}" required />
         </label>
         <label>
           قد (سانتی‌متر) *
-          <input type="number" step="0.1" min="50" max="250" name="height" value="{{ form.height }}" required />
+          <input type="number" step="0.1" min="50" max="250" name="height" id="height" value="{{ form.height }}" required />
         </label>
         <label>
           وزن (کیلوگرم)
-          <input type="number" step="0.1" min="1" name="weight" value="{{ form.weight }}" />
+          <input type="number" step="0.1" min="1" name="weight" id="weight" value="{{ form.weight }}" />
         </label>
         <label>
           جنس *
-          <select name="sex">
+          <select name="sex" id="sex">
             <option value="Male" {% if form.sex == 'Male' %}selected{% endif %}>مرد</option>
             <option value="Female" {% if form.sex == 'Female' %}selected{% endif %}>زن</option>
           </select>
         </label>
         <label>
           نژاد (اختیاری)
-          <input type="text" name="race" value="{{ form.race }}" placeholder="Other" />
+          <input type="text" name="race" id="race" value="{{ form.race }}" placeholder="Other" />
         </label>
         <div class="actions">
           <button type="submit">تفسیر کن</button>
@@ -70,7 +76,7 @@
       <h2>نتیجه نهایی</h2>
 
       <div class="final-box {% if result.needs_physician_review %}review{% else %}ok{% endif %}">
-        <div class="final-pattern">{{ result.final_pattern }}</div>
+        <div class="final-pattern">{{ result.final_pattern_fa }} <span class="en">({{ result.final_pattern }})</span></div>
         <div class="meta">
           منبع تصمیم: مدل یادگیری ماشین |
           اطمینان: {{ result.confidence }} |
@@ -85,7 +91,7 @@
         <div>
           <h3>مدل (XGBoost)</h3>
           <ul>
-            <li>الگو: <strong>{{ result.ml_model.pattern }}</strong></li>
+            <li>الگو: <strong>{{ result.ml_model.pattern_fa }}</strong> ({{ result.ml_model.pattern }})</li>
             <li>احتمال برتر: {{ result.ml_model.top_probability }}</li>
           </ul>
           <table class="probs">
@@ -111,7 +117,7 @@
         <div>
           <h3>قواعد بالینی (مکمل)</h3>
           <ul>
-            <li>الگوی Rule: <strong>{{ result.rule_based.pattern }}</strong></li>
+            <li>الگوی Rule: <strong>{{ result.rule_based.pattern_fa }}</strong> ({{ result.rule_based.pattern }})</li>
             <li>نسبت FEV1/FVC: {{ result.rule_based.ratio }}</li>
             <li>FEV1 %predicted: {{ result.rule_based.fev1_pct_predicted if result.rule_based.fev1_pct_predicted is not none else '—' }}</li>
             <li>FVC %predicted: {{ result.rule_based.fvc_pct_predicted if result.rule_based.fvc_pct_predicted is not none else '—' }}</li>
@@ -171,5 +177,18 @@
       <p>پروژه لیسانس — تفسیر اسپیرومتری هیبریدی | تصمیم نهایی با مدل، Rule لایه مکمل بالینی</p>
     </footer>
   </div>
+
+  <script>
+    document.querySelectorAll('.sample-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.getElementById('fev1').value = btn.dataset.fev1;
+        document.getElementById('fvc').value = btn.dataset.fvc;
+        document.getElementById('age').value = btn.dataset.age;
+        document.getElementById('sex').value = btn.dataset.sex;
+        document.getElementById('height').value = btn.dataset.height;
+        document.getElementById('weight').value = btn.dataset.weight || '';
+      });
+    });
+  </script>
 </body>
 </html>
