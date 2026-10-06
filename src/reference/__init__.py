@@ -31,7 +31,8 @@ from .base import (
     UnsupportedIndexError,
     ValidationError,
 )
-from .gli import compute_reference
+from .gli import DataNotAvailableError, compute_reference
+from .schema import SchemaError
 
 __all__ = [
     "Sex",
@@ -41,7 +42,9 @@ __all__ = [
     "ReferenceResult",
     "ValidationError",
     "UnsupportedIndexError",
+    "DataNotAvailableError",
+    "SchemaError",
     "compute_reference",
 ]
 
-__version__ = "0.1.0-poc"
+__version__ = "0.1.1-poc"
