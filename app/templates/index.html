@@ -3,16 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>تفسیر اسپیرومتری</title>
+  <title>تفسیر اسپیرومتری — سامانه دوگانه مرجع فیزیولوژیک و یادگیری ماشین</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>تفسیر اسپیرومتری ریه</h1>
+      <h1>تفسیر دوگانهٔ اسپیرومتری ریه (Dual-Engine Spirometry)</h1>
       <p class="subtitle">
-        سیستم هیبریدی: مدل یادگیری ماشین + قواعد بالینی GOLD / ECSC + توضیح SHAP
+        ارزیابی همگام موتور مرجع فیزیولوژیک (ATS/ERS 2021/2022) و مدل جانشین یادگیری ماشین (XGBoost Surrogate + SHAP)
       </p>
+      <div class="header-disclaimer">
+        <strong>سلب مسئولیت آموزشی:</strong> این سامانه صرفاً یک نمونهٔ پژوهشی–آموزشی است و فاقد هرگونه کاربرد تشخیصی بالینی است. ارزیابی اسپیرومتری صرفاً بیانگر الگوی فیزیولوژیک است و ادعای «تشخیص قطعی» ندارد.
+      </div>
     </header>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -26,155 +29,261 @@
     {% endwith %}
 
     <section class="card">
-      <h2>ورود مقادیر</h2>
+      <h2>ورود مقادیر اسپیرومتری و مشخصات دموگرافیک</h2>
       <div class="sample-row">
-        <span class="sample-label">نمونه سریع:</span>
-        <button type="button" class="sample-btn" data-fev1="2.1" data-fvc="3.5" data-age="55" data-sex="Male" data-height="170" data-weight="78">انسدادی نمونه</button>
-        <button type="button" class="sample-btn" data-fev1="3.2" data-fvc="3.8" data-age="30" data-sex="Female" data-height="165" data-weight="60">نرمال نمونه</button>
-        <button type="button" class="sample-btn" data-fev1="1.5" data-fvc="2.8" data-age="68" data-sex="Male" data-height="175" data-weight="80">مورد اختلاف</button>
+        <span class="sample-label">نمونه‌های بالینی آماده:</span>
+        <button type="button" class="sample-btn" data-fev1="2.1" data-fvc="3.5" data-age="55" data-sex="Male" data-height="170" data-weight="78" data-race="White">نمونه الگوی انسدادی</button>
+        <button type="button" class="sample-btn" data-fev1="3.2" data-fvc="3.8" data-age="30" data-sex="Female" data-height="165" data-weight="60" data-race="White">نمونه الگوی نرمال</button>
+        <button type="button" class="sample-btn" data-fev1="1.8" data-fvc="2.0" data-age="50" data-sex="Male" data-height="175" data-weight="75" data-race="White">مشکوک به محدودیت (نیازمند TLC)</button>
+        <button type="button" class="sample-btn" data-fev1="1.5" data-fvc="2.8" data-age="68" data-sex="Male" data-height="175" data-weight="80" data-race="White">مورد مرزی / واگرایی مرجع و مدل</button>
       </div>
+
       <form method="post" class="form-grid" id="spirometry-form">
         <label>
-          FEV1 (لیتر) *
-          <input type="number" step="0.01" min="0" name="fev1" id="fev1" value="{{ form.fev1 }}" required />
+          FEV1 (حجم بازدم پرفشار در ثانیه اول - لیتر) *
+          <input type="number" step="0.01" min="0.1" name="fev1" id="fev1" value="{{ form.fev1 }}" required />
         </label>
         <label>
-          FVC (لیتر) *
-          <input type="number" step="0.01" min="0" name="fvc" id="fvc" value="{{ form.fvc }}" required />
+          FVC (ظرفیت حیاتی پرفشار - لیتر) *
+          <input type="number" step="0.01" min="0.1" name="fvc" id="fvc" value="{{ form.fvc }}" required />
         </label>
         <label>
-          سن (سال) *
-          <input type="number" min="1" max="120" name="age" id="age" value="{{ form.age }}" required />
+          سن (سال، بین ۶ تا ۸۰) *
+          <input type="number" step="0.1" min="6" max="80" name="age" id="age" value="{{ form.age }}" required />
         </label>
         <label>
-          قد (سانتی‌متر) *
-          <input type="number" step="0.1" min="50" max="250" name="height" id="height" value="{{ form.height }}" required />
+          قد (سانتی‌متر، بین ۱۰۰ تا ۲۲۰) *
+          <input type="number" step="0.1" min="100" max="220" name="height" id="height" value="{{ form.height }}" required />
         </label>
         <label>
           وزن (کیلوگرم)
-          <input type="number" step="0.1" min="1" name="weight" id="weight" value="{{ form.weight }}" />
+          <input type="number" step="0.1" min="10" max="300" name="weight" id="weight" value="{{ form.weight }}" placeholder="پیش‌فرض: 70" />
         </label>
         <label>
-          جنس *
+          جنس زیستی *
           <select name="sex" id="sex">
-            <option value="Male" {% if form.sex == 'Male' %}selected{% endif %}>مرد</option>
-            <option value="Female" {% if form.sex == 'Female' %}selected{% endif %}>زن</option>
+            <option value="Male" {% if form.sex == 'Male' %}selected{% endif %}>مرد (Male)</option>
+            <option value="Female" {% if form.sex == 'Female' %}selected{% endif %}>زن (Female)</option>
           </select>
         </label>
         <label>
-          نژاد (اختیاری)
-          <input type="text" name="race" id="race" value="{{ form.race }}" placeholder="Other" />
+          گروه نژادی/جمعیتی دیتاست آموزش *
+          <select name="race" id="race" required>
+            <option value="White" {% if form.race == 'White' %}selected{% endif %}>White</option>
+            <option value="Black" {% if form.race == 'Black' %}selected{% endif %}>Black</option>
+            <option value="Mexican American" {% if form.race == 'Mexican American' %}selected{% endif %}>Mexican American</option>
+            <option value="Other hispanic" {% if form.race == 'Other hispanic' %}selected{% endif %}>Other hispanic</option>
+            <option value="Other race, including multi-racial" {% if form.race == 'Other race, including multi-racial' %}selected{% endif %}>Other race, including multi-racial</option>
+          </select>
         </label>
+        <div class="checkbox-field">
+          <label class="inline-checkbox">
+            <input type="checkbox" name="use_fixed_ratio" id="use_fixed_ratio" {% if form.use_fixed_ratio %}checked{% endif %} />
+            استفاده از نسبت ثابت GOLD (FEV1/FVC &lt; 0.70) به‌جای حد پایین نرمال (LLN)
+          </label>
+        </div>
         <div class="actions">
-          <button type="submit">تفسیر کن</button>
+          <button type="submit">تفسیر دوگانه اسپیرومتری</button>
         </div>
       </form>
     </section>
 
     {% if result %}
-    <section class="card result">
-      <h2>نتیجه نهایی</h2>
+    <section class="card result-card">
+      <h2>نتایج ارزیابی معماری دوگانه (Dual-Engine Analysis)</h2>
 
-      <div class="final-box {% if result.needs_physician_review %}review{% else %}ok{% endif %}">
-        <div class="final-pattern">{{ result.final_pattern_fa }} <span class="en">({{ result.final_pattern }})</span></div>
-        <div class="meta">
-          منبع تصمیم: مدل یادگیری ماشین |
-          اطمینان: {{ result.confidence }} |
-          توافق با Rule: {{ result.agreement }}
+      <!-- کادر تحلیل انطباق / واگرایی دو موتور -->
+      <div class="comparison-banner {% if result.comparison.concordant %}concordant{% else %}discrepancy{% endif %}">
+        <div class="comparison-header">
+          <span class="comparison-badge">
+            {% if result.comparison.concordant %}
+              ✔ انطباق موتورها (Concordant Agreement)
+            {% else %}
+              ⚠ واگرایی و عدم انطباق موتورها (Discrepancy Detected)
+            {% endif %}
+          </span>
+          {% if result.physiological_engine.is_borderline %}
+            <span class="borderline-badge">مورد مرزی (Borderline LLN)</span>
+          {% endif %}
         </div>
-        {% if result.needs_physician_review %}
-          <div class="review-flag">⚠ مدل و قواعد بالینی هم‌نظر نیستند — بررسی پزشک توصیه می‌شود</div>
-        {% endif %}
+        <p class="comparison-desc">{{ result.comparison.discrepancy_explanation }}</p>
       </div>
 
-      <div class="two-col">
-        <div>
-          <h3>مدل (XGBoost)</h3>
-          <ul>
-            <li>الگو: <strong>{{ result.ml_model.pattern_fa }}</strong> ({{ result.ml_model.pattern }})</li>
-            <li>احتمال برتر: {{ result.ml_model.top_probability }}</li>
-          </ul>
-          <table class="probs">
+      <!-- ساختار ستونی کنار هم (Side-by-Side) -->
+      <div class="dual-columns">
+        <!-- ستون چپ: موتور مرجع فیزیولوژیک قطعی ATS/ERS -->
+        <div class="engine-column physiological-col">
+          <div class="engine-header">
+            <h3>موتور فیزیولوژیک مرجع (ATS/ERS 2021/2022)</h3>
+            <span class="engine-tag">Deterministic Reference Engine</span>
+          </div>
+
+          <div class="pattern-display">
+            <div class="pattern-title">{{ result.physiological_engine.pattern_fa }}</div>
+            <div class="pattern-en">Standard Pattern: {{ result.physiological_engine.pattern }}</div>
+            {% if result.physiological_engine.severity %}
+              <div class="severity-badge">شدت اختلال: {{ result.physiological_engine.severity_fa }} ({{ result.physiological_engine.severity }})</div>
+            {% endif %}
+          </div>
+
+          <h4>جدول محاسبات و مقادیر مرجع فیزیولوژیک</h4>
+          <table class="metrics-table">
             <thead>
-              <tr><th>کلاس</th><th>احتمال</th></tr>
+              <tr>
+                <th>پارامتر</th>
+                <th>اندازه‌گیری</th>
+                <th>پیش‌بینی (Pred)</th>
+                <th>حد پایین نرمال (LLN)</th>
+                <th>Z-Score</th>
+                <th>% Predicted</th>
+              </tr>
             </thead>
             <tbody>
-              {% for cls, p in result.ml_model.probabilities.items() %}
               <tr>
-                <td>{{ cls }}</td>
+                <td><strong>FEV1 (L)</strong></td>
+                <td>{{ result.input_values.fev1 }}</td>
+                <td>{{ result.physiological_engine.predicted.fev1 }}</td>
+                <td>{{ result.physiological_engine.lln.fev1 }}</td>
+                <td class="{% if result.physiological_engine.zscore.fev1 < -1.645 %}val-abnormal{% endif %}">
+                  {{ result.physiological_engine.zscore.fev1 }}
+                </td>
+                <td>{{ result.physiological_engine.pct_predicted.fev1 }}%</td>
+              </tr>
+              <tr>
+                <td><strong>FVC (L)</strong></td>
+                <td>{{ result.input_values.fvc }}</td>
+                <td>{{ result.physiological_engine.predicted.fvc }}</td>
+                <td>{{ result.physiological_engine.lln.fvc }}</td>
+                <td class="{% if result.physiological_engine.zscore.fvc < -1.645 %}val-abnormal{% endif %}">
+                  {{ result.physiological_engine.zscore.fvc }}
+                </td>
+                <td>{{ result.physiological_engine.pct_predicted.fvc }}%</td>
+              </tr>
+              <tr>
+                <td><strong>FEV1/FVC</strong></td>
+                <td>{{ result.input_values.ratio }}</td>
+                <td>{{ result.physiological_engine.predicted.ratio }}</td>
+                <td>{{ result.physiological_engine.lln.ratio }}</td>
+                <td class="{% if result.physiological_engine.zscore.ratio < -1.645 %}val-abnormal{% endif %}">
+                  {{ result.physiological_engine.zscore.ratio }}
+                </td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="clinical-note-box">
+            <strong>تفسیر و یادداشت بالینی:</strong>
+            <p>{{ result.physiological_engine.clinical_note }}</p>
+          </div>
+
+          {% if 'Restrictive' in result.physiological_engine.pattern or 'محدود' in result.physiological_engine.pattern_fa %}
+          <div class="tlc-alert-box">
+            <strong>⚠ هشدار محدودیت حجمی (TLC Requirement):</strong>
+            کاهش FVC در اسپیرومتری صرفاً یک الگوی احتمالی یا مشکوک را نشان می‌دهد. تأیید قطعی نقص تحدیدی منحصراً نیازمند اندازه‌گیری ظرفیت تام ریه (Total Lung Capacity - TLC) از طریق بادی پلتیسموگرافی یا رقت گاز است.
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- ستون راست: مدل جانشین یادگیری ماشین XGBoost + SHAP -->
+        <div class="engine-column ml-col">
+          <div class="engine-header">
+            <h3>مدل جانشین یادگیری ماشین (XGBoost Surrogate)</h3>
+            <span class="engine-tag">NHANES Data-Driven Surrogate</span>
+          </div>
+
+          <div class="pattern-display ml-display">
+            <div class="pattern-title">{{ result.ml_surrogate.pattern_fa }}</div>
+            <div class="pattern-en">Predicted Class: {{ result.ml_surrogate.pattern }}</div>
+          </div>
+
+          <h4>توزیع احتمال پیش‌بینی کلاس‌ها</h4>
+          <table class="probs-table">
+            <thead>
+              <tr>
+                <th>الگو (کلاس)</th>
+                <th>احتمال پیش‌بینی</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cls, p in result.ml_surrogate.probabilities.items() %}
+              <tr>
+                <td><strong>{{ cls }}</strong></td>
                 <td>
                   <div class="bar-wrap">
                     <div class="bar" style="width: {{ (p * 100)|round(1) }}%"></div>
-                    <span>{{ p }}</span>
+                    <span class="prob-num">{{ (p * 100)|round(1) }}% ({{ p }})</span>
                   </div>
                 </td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
-        </div>
 
-        <div>
-          <h3>قواعد بالینی (مکمل)</h3>
-          <ul>
-            <li>الگوی Rule: <strong>{{ result.rule_based.pattern_fa }}</strong> ({{ result.rule_based.pattern }})</li>
-            <li>نسبت FEV1/FVC: {{ result.rule_based.ratio }}</li>
-            <li>FEV1 %predicted: {{ result.rule_based.fev1_pct_predicted if result.rule_based.fev1_pct_predicted is not none else '—' }}</li>
-            <li>FVC %predicted: {{ result.rule_based.fvc_pct_predicted if result.rule_based.fvc_pct_predicted is not none else '—' }}</li>
-            <li>شدت: {{ result.rule_based.severity if result.rule_based.severity else '—' }}</li>
-            <li>روش: {{ result.rule_based.method }}</li>
-          </ul>
-          <p class="note">{{ result.rule_based.note }}</p>
+          <h4>توضیح‌پذیری SHAP (ویژگی‌های مؤثر بر تصمیم مدل)</h4>
+          {% if result.ml_surrogate.shap_explanation %}
+          <table class="shap-table">
+            <thead>
+              <tr>
+                <th>ویژگی</th>
+                <th>مقدار ورودی</th>
+                <th>ضریب SHAP</th>
+                <th>جهت اثر</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for feat in result.ml_surrogate.shap_explanation %}
+              <tr>
+                <td>{{ feat.feature_fa }} ({{ feat.feature }})</td>
+                <td>{{ feat.value }}</td>
+                <td>{{ feat.shap_value }}</td>
+                <td class="{% if feat.direction == 'افزاینده' %}dir-up{% else %}dir-down{% endif %}">
+                  {{ feat.direction }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+            <p class="note">اطلاعات SHAP در دسترس نیست.</p>
+          {% endif %}
+
+          <p class="note">
+            تحلیل SHAP سهم هر یک از ویژگی‌های فیزیولوژیک و دموگرافیک بیمار را بر تغییر لگاریتم شانس پیش‌بینی مدل جانشین نشان می‌دهد.
+          </p>
         </div>
       </div>
 
-      <h3>توضیح SHAP (چرا مدل این تصمیم را گرفته؟)</h3>
-      {% if result.shap_explanation.error %}
-        <p class="note">محاسبه SHAP ممکن نشد: {{ result.shap_explanation.error }}</p>
-      {% elif result.shap_explanation.top_features %}
-        <p class="note">{{ result.shap_explanation.note }}</p>
-        <table class="probs shap-table">
-          <thead>
-            <tr>
-              <th>ویژگی</th>
-              <th>مقدار</th>
-              <th>اثر SHAP</th>
-              <th>جهت</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in result.shap_explanation.top_features %}
-            <tr>
-              <td>{{ item.feature_fa }}</td>
-              <td>{{ item.value }}</td>
-              <td>{{ item.shap_value }}</td>
-              <td class="{% if item.direction == 'افزاینده' %}dir-up{% else %}dir-down{% endif %}">
-                {{ item.direction }}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <p class="note">توضیح SHAP در دسترس نیست.</p>
-      {% endif %}
+      <!-- مقادیر ورودی بیمار -->
+      <div class="inputs-summary">
+        <h4>خلاصه پارامترهای ثبت‌شده:</h4>
+        <ul class="inputs-list">
+          <li><strong>FEV1:</strong> {{ result.input_values.fev1 }} L</li>
+          <li><strong>FVC:</strong> {{ result.input_values.fvc }} L</li>
+          <li><strong>نسبت FEV1/FVC:</strong> {{ result.input_values.ratio }}</li>
+          <li><strong>سن:</strong> {{ result.input_values.age }} سال</li>
+          <li><strong>جنس:</strong> {{ result.input_values.sex }}</li>
+          <li><strong>قد:</strong> {{ result.input_values.height }} cm</li>
+          <li><strong>وزن:</strong> {{ result.input_values.weight }} kg</li>
+          <li><strong>گروه نژادی:</strong> {{ result.input_values.race }}</li>
+        </ul>
+      </div>
 
-      <h3>مقادیر ورودی</h3>
-      <ul class="inputs">
-        <li>FEV1: {{ result.input_values.fev1 }} L</li>
-        <li>FVC: {{ result.input_values.fvc }} L</li>
-        <li>نسبت: {{ result.input_values.ratio }}</li>
-        <li>سن: {{ result.input_values.age }}</li>
-        <li>جنس: {{ result.input_values.sex }}</li>
-        <li>قد: {{ result.input_values.height }} cm</li>
-        <li>وزن: {{ result.input_values.weight }} kg</li>
-        <li>BMI: {{ result.input_values.bmi }}</li>
-      </ul>
+      <!-- بنر برجسته بیانیه سلب مسئولیت آموزشی بالینی -->
+      <div class="disclaimer-banner">
+        <div class="disclaimer-title">بیانیهٔ سلب مسئولیت آموزشی–پژوهشی (Educational &amp; Research Disclaimer)</div>
+        <p class="disclaimer-highlight">
+          این سامانه صرفاً یک نمونهٔ پژوهشی–آموزشی است و فاقد کاربرد تشخیصی بالینی است.
+        </p>
+        <p class="disclaimer-text">
+          {{ result.disclaimer }}
+        </p>
+      </div>
     </section>
     {% endif %}
 
     <footer>
-      <p>پروژه لیسانس — تفسیر اسپیرومتری هیبریدی | تصمیم نهایی با مدل، Rule لایه مکمل بالینی</p>
+      <p>پروژه کارشناسی — معماری دوگانه تفسیر اسپیرومتری: موتور مرجع قطعی ATS/ERS + مدل جانشین ML و تحلیل SHAP</p>
     </footer>
   </div>
 
@@ -187,6 +296,7 @@
         document.getElementById('sex').value = btn.dataset.sex;
         document.getElementById('height').value = btn.dataset.height;
         document.getElementById('weight').value = btn.dataset.weight || '';
+        document.getElementById('race').value = btn.dataset.race || 'White';
       });
     });
   </script>
