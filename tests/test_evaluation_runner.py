@@ -11,9 +11,14 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.evaluate_dual_engine import run_dual_engine_benchmark
 
 
-def test_benchmark_runner_subset():
-    """Verify evaluation runner executes on subset and returns required schema."""
-    summary = run_dual_engine_benchmark(sample_size=30, random_state=42, generate_docs=True)
+def test_benchmark_runner_subset(tmp_path):
+    """Verify evaluation runner executes on subset and returns required schema in tmp_path."""
+    summary = run_dual_engine_benchmark(
+        sample_size=30,
+        random_state=42,
+        generate_docs=True,
+        output_dir=tmp_path,
+    )
 
     assert isinstance(summary, dict)
     assert "overall_concordance" in summary
@@ -29,9 +34,9 @@ def test_benchmark_runner_subset():
     assert "total_samples" in summary
     assert summary["total_samples"] == 30
 
-    # Verify generated documentation artifacts exist
-    eval_doc = PROJECT_ROOT / "docs" / "evaluation_results.md"
-    thesis_doc = PROJECT_ROOT / "docs" / "thesis_defense_guide.md"
+    # Verify generated documentation artifacts exist in isolated tmp_path
+    eval_doc = tmp_path / "evaluation_results.md"
+    thesis_doc = tmp_path / "thesis_defense_guide.md"
 
     assert eval_doc.exists()
     assert eval_doc.stat().st_size > 500
@@ -50,13 +55,18 @@ def test_benchmark_deterministic():
     assert run1["discrepancy_matrix"] == run2["discrepancy_matrix"]
 
 
-def test_evaluation_safety_and_clinical_caveats():
+def test_evaluation_safety_and_clinical_caveats(tmp_path):
     """Verify documentation artifacts enforce medical safety and FVC/TLC caveats."""
-    summary = run_dual_engine_benchmark(sample_size=20, random_state=42, generate_docs=True)
+    summary = run_dual_engine_benchmark(
+        sample_size=20,
+        random_state=42,
+        generate_docs=True,
+        output_dir=tmp_path,
+    )
     assert summary is not None
 
-    eval_doc = PROJECT_ROOT / "docs" / "evaluation_results.md"
-    thesis_doc = PROJECT_ROOT / "docs" / "thesis_defense_guide.md"
+    eval_doc = tmp_path / "evaluation_results.md"
+    thesis_doc = tmp_path / "thesis_defense_guide.md"
 
     eval_content = eval_doc.read_text(encoding="utf-8")
     thesis_content = thesis_doc.read_text(encoding="utf-8")

@@ -504,6 +504,7 @@ def run_dual_engine_benchmark(
     random_state: int = 42,
     generate_docs: bool = True,
     data_path: Optional[Path] = None,
+    output_dir: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Run automated dual-engine benchmark evaluation and generate documentation artifacts.
 
@@ -518,6 +519,8 @@ def run_dual_engine_benchmark(
         Whether to generate or update 'docs/evaluation_results.md' and 'docs/thesis_defense_guide.md'.
     data_path : Optional[Path], default=None
         Path to processed spirometry CSV dataset.
+    output_dir : Optional[Path], default=None
+        Directory where documentation markdown files will be written. Defaults to 'docs/'.
 
     Returns
     -------
@@ -663,8 +666,9 @@ def run_dual_engine_benchmark(
     }
 
     if generate_docs:
-        eval_doc_path = DOCS_DIR / "evaluation_results.md"
-        thesis_doc_path = DOCS_DIR / "thesis_defense_guide.md"
+        target_docs_dir = Path(output_dir) if output_dir is not None else DOCS_DIR
+        eval_doc_path = target_docs_dir / "evaluation_results.md"
+        thesis_doc_path = target_docs_dir / "thesis_defense_guide.md"
         generate_evaluation_results_document(benchmark_summary, eval_doc_path)
         generate_thesis_defense_guide_document(thesis_doc_path)
         benchmark_summary["generated_files"] = [str(eval_doc_path), str(thesis_doc_path)]
@@ -690,6 +694,12 @@ def main():
         help="Random seed for sampling (default: 42).",
     )
     parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Directory to save generated docs (default: docs/).",
+    )
+    parser.add_argument(
         "--no-docs",
         action="store_true",
         help="Do not overwrite documentation markdown files.",
@@ -698,12 +708,14 @@ def main():
     args = parser.parse_args()
     sample_size = None if args.sample_size <= 0 else args.sample_size
     generate_docs = not args.no_docs
+    output_dir = Path(args.output_dir) if args.output_dir else None
 
     print(f"Running Dual-Engine Benchmark (sample_size={sample_size}, seed={args.random_state})...")
     summary = run_dual_engine_benchmark(
         sample_size=sample_size,
         random_state=args.random_state,
         generate_docs=generate_docs,
+        output_dir=output_dir,
     )
 
     print("\n================ BENCHMARK RESULTS ================")

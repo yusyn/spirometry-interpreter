@@ -2,8 +2,8 @@
 
 > **Document Status:** Automated Scientific Benchmark Report  
 > **Architecture Evaluated:** Dual-Engine Spirometry Interpreter (Deterministic ATS/ERS 2021 Reference Engine vs. NHANES-Trained XGBoost ML Surrogate)  
-> **Sample Evaluated:** 20 NHANES cohort participants (Random Seed: 42)  
-> **Overall Cross-Engine Concordance:** **90.0%** (18 / 20 cases)  
+> **Sample Evaluated:** 250 NHANES cohort participants (Random Seed: 42)  
+> **Overall Cross-Engine Concordance:** **87.2%** (218 / 250 cases)  
 > **Medical Disclaimer:** This system is an educational and research decision-support tool assessing *physiological patterns* (*الگوی فیزیولوژیک*). It **never** provides a definitive clinical diagnosis (*تشخیص قطعی*). Spirometric vital capacity reductions are presumptive and mandatorily require Total Lung Capacity (TLC) confirmation.
 
 ---
@@ -14,7 +14,7 @@ This evaluation quantitatively benchmarks the clinical and statistical alignment
 1. **Deterministic Physiological Reference Engine:** Strict adherence to ATS/ERS 2021 guidelines using Hankinson / NHANES III reference equations to calculate Predicted, Lower Limit of Normal (LLN), and standardized Z-scores.
 2. **Empirical ML Surrogate Model:** An XGBoost gradient-boosted tree model trained on 16,596 NHANES participant records, equipped with TreeSHAP feature attributions.
 
-Our empirical benchmark yields an **overall concordance rate of 90.0%**, demonstrating strong general agreement on mainstream normal and obstructive profiles while revealing critical edge-case divergences in borderline obstruction and vital capacity restrictions.
+Our empirical benchmark yields an **overall concordance rate of 87.2%**, demonstrating strong general agreement on mainstream normal and obstructive profiles while revealing critical edge-case divergences in borderline obstruction and vital capacity restrictions.
 
 ---
 
@@ -63,20 +63,20 @@ The table below contrasts the deterministic ATS/ERS reference engine classificat
 
 | Deterministic ATS/ERS Pattern \ ML Surrogate | Normal | Obstructive | Restrictive | Mixed | Total |
 |---|---:|---:|---:|---:|---:|
-| **Normal Spirometry** | 18 | 0 | 0 | 0 | 18 |
-| **Obstructive** | 0 | 0 | 0 | 0 | 0 |
-| **Suspected Restrictive** | 2 | 0 | 0 | 0 | 2 |
-| **Mixed** | 0 | 0 | 0 | 0 | 0 |
-| **Total** | 20 | 0 | 0 | 0 | 20 |
+| **Normal Spirometry** | 204 | 1 | 3 | 0 | 208 |
+| **Obstructive** | 4 | 4 | 0 | 0 | 8 |
+| **Suspected Restrictive** | 24 | 0 | 9 | 0 | 33 |
+| **Mixed** | 0 | 0 | 0 | 1 | 1 |
+| **Total** | 232 | 5 | 12 | 1 | 250 |
 
 ### 3.2 Primary Discrepancy Patterns
 
-Analysis of the 2 discordant instances reveals two dominant physiological-statistical phenomena:
+Analysis of the 32 discordant instances reveals two dominant physiological-statistical phenomena:
 
-1. **Presumptive Restrictive vs. ML Normal (2 cases):**
+1. **Presumptive Restrictive vs. ML Normal (24 cases):**
    - The deterministic engine flags $\text{FVC} < \text{LLN}$ as *Suspected Restrictive*.
    - The ML model, conditioned on empirical population distribution and multi-feature interaction (BMI, weight, age), tends to classify mild FVC depressions as Normal if the $\text{FEV}_1/\text{FVC}$ ratio remains well-preserved.
-2. **Borderline Obstructive Divergence (0 cases):**
+2. **Borderline Obstructive Divergence (4 cases):**
    - Cases where the patient's measured ratio lies within $\pm 2\%$ of the LLN cutoff.
    - The deterministic engine applies a strict step-function boundary, whereas the ML surrogate outputs continuous decision margins influenced by non-linear demographic features.
 
@@ -89,16 +89,16 @@ Concordance evaluated across demographic partitions to detect any systematic bia
 ### 4.1 By Sex
 | Sex Group | Evaluated Cohort | Concordant Cases | Concordance Rate |
 |---|---:|---:|---:|
-| **Male** | 9 | 7 | 77.8% |
-| **Female** | 11 | 11 | 100.0% |
+| **Male** | 114 | 94 | 82.5% |
+| **Female** | 136 | 124 | 91.2% |
 
 ### 4.2 By Age Bracket
 | Age Bracket | Evaluated Cohort | Concordant Cases | Concordance Rate |
 |---|---:|---:|---:|
-| **Pediatric (6–17 yr)** | 4 | 2 | 50.0% |
-| **Young Adult (18–39 yr)** | 5 | 5 | 100.0% |
-| **Middle Adult (40–59 yr)** | 5 | 5 | 100.0% |
-| **Elderly / Senior (60–80 yr)** | 6 | 6 | 100.0% |
+| **Pediatric (6–17 yr)** | 62 | 40 | 64.5% |
+| **Young Adult (18–39 yr)** | 75 | 72 | 96.0% |
+| **Middle Adult (40–59 yr)** | 64 | 61 | 95.3% |
+| **Elderly / Senior (60–80 yr)** | 49 | 45 | 91.8% |
 
 ---
 
