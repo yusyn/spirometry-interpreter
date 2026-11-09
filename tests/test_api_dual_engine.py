@@ -123,8 +123,8 @@ def test_web_index_post_concordant(client):
 
     # Check side-by-side elements in UI
     assert "موتور فیزیولوژیک مرجع" in html or "Physiological" in html or "ATS/ERS" in html
-    assert "مدل جانشین" in html or "ML Surrogate" in html or "XGBoost" in html
-    assert "این سامانه صرفاً یک نمونهٔ پژوهشی–آموزشی است و فاقد کاربرد تشخیصی بالینی است" in html
+    assert "مدل یادگیری ماشین" in html or "ML Surrogate" in html or "XGBoost" in html
+    assert "یاسین زمانی" in html
 
 
 def test_web_index_post_restrictive_tlc_disclaimer(client):

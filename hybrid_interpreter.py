@@ -10,9 +10,9 @@ if __name__ == "__main__":
 
     # فقط برای اینکه بلوک __main__ ماژول اصلی اجرا شود، مستقیم صدا می‌زنیم
     test_cases = [
-        {"fev1": 2.1, "fvc": 3.5, "age": 55, "sex": "Male", "height": 170},
-        {"fev1": 3.2, "fvc": 3.8, "age": 30, "sex": "Female", "height": 165},
-        {"fev1": 1.5, "fvc": 2.8, "age": 68, "sex": "Male", "height": 175},
+        {"fev1": 2.1, "fvc": 3.5, "age": 55, "sex": "Male", "height": 170, "weight": 78, "race": "White"},
+        {"fev1": 3.2, "fvc": 3.8, "age": 30, "sex": "Female", "height": 165, "weight": 60, "race": "White"},
+        {"fev1": 1.5, "fvc": 2.8, "age": 68, "sex": "Male", "height": 175, "weight": 80, "race": "White"},
     ]
 
     print("نتایج تست تابع هیبریدی (از ریشه پروژه)\n")
