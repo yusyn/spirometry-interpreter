@@ -99,6 +99,62 @@ def _parse_payload(data: dict) -> dict:
     return payload
 
 
+def _translate_clinical_note(note: str) -> str:
+    """ترجمه یادداشت بالینی موتور فیزیولوژیک به فارسی روان."""
+    if not note:
+        return ""
+    text = note
+    replacements = [
+        ("Mixed obstructive-restrictive physiological pattern.", "الگوی فیزیولوژیک مختلط (انسدادی و تحدیدی)."),
+        ("TLC measurement required to confirm true restrictive lung defect.", "تأیید قطعی نقص واقعی تحدید ریه نیازمند اندازه‌گیری ظرفیت تام ریه (TLC) با بادی‌پلتیسموگرافی است."),
+        ("Airflow obstruction physiological pattern (Mild severity).", "الگوی فیزیولوژیک انسداد راه‌های هوایی (شدت خفیف)."),
+        ("Airflow obstruction physiological pattern (Moderate severity).", "الگوی فیزیولوژیک انسداد راه‌های هوایی (شدت متوسط)."),
+        ("Airflow obstruction physiological pattern (Severe severity).", "الگوی فیزیولوژیک انسداد راه‌های هوایی (شدت شدید)."),
+        ("Airflow obstruction physiological pattern (Very Severe severity).", "الگوی فیزیولوژیک انسداد راه‌های هوایی (شدت بسیار شدید)."),
+        ("Airflow obstruction physiological pattern", "الگوی فیزیولوژیک انسداد راه‌های هوایی"),
+        ("Suspected restrictive physiological pattern.", "مشکوک به الگوی فیزیولوژیک محدودیتی (تحدیدی)."),
+        ("Normal spirometry: physiological volumes and ratio within normal reference limits.", "اسپیرومتری نرمال: حجم‌های ریوی و نسبت FEV1/FVC در محدوده مرجع طبیعی جامعه قرار دارند."),
+        ("Discrepancy detected between fixed ratio (0.70) and ATS/ERS LLN criteria; borderline airflow limitation.", "اختلاف میان معیار نسبت ثابت (۰.۷۰) و حد پایین نرمال (LLN) استاندارد ATS/ERS؛ محدودیت جریان هوا در وضعیت مرزی است."),
+        ("Borderline FEV1/FVC ratio near physiological threshold; clinical correlation recommended.", "نسبت FEV1/FVC در محدوده مرزی و نزدیک به آستانه فیزیولوژیک قرار دارد؛ بررسی با شرایط بالینی توصیه می‌شود."),
+    ]
+    for en, fa in replacements:
+        text = text.replace(en, fa)
+    return text
+
+
+def _translate_discrepancy_explanation(explanation: str, phys_fa: str, ml_fa: str) -> str:
+    """ترجمه متن تحلیل واگرایی/انطباق دو موتور به فارسی روان."""
+    if not explanation:
+        return ""
+    text = explanation
+    replacements = [
+        ("Concordant: Both physiological engine and ML surrogate agree on the", "انطباق کامل: هر دو موتور فیزیولوژیک و مدل یادگیری ماشین بر این الگو توافق دارند:"),
+        ("pattern.", ""),
+        ("Discrepancy detected: Physiological Engine categorized as", "اختلاف در ارزیابی: موتور فیزیولوژیک وضعیت را"),
+        ("while ML surrogate predicted", "تشخیص داده، در حالی که مدل یادگیری ماشین آن را"),
+        ("ML boundary divergence near ratio LLN or physiological threshold.", "واگرایی مرزهای تصمیم‌گیری مدل یادگیری ماشین در نزدیکی حد پایین نرمال (LLN) یا آستانه فیزیولوژیک رخ داده است."),
+        ("Divergence observed between deterministic ATS/ERS reference criteria and statistical ML surrogate boundaries.", "تفاوت بین معیارهای مرجع استاندارد ATS/ERS و مرزهای آماری مدل یادگیری ماشین مشاهده می‌شود."),
+        ("Note that definitive restrictive defect requires TLC (Total Lung Capacity) measurement.", "توجه: تأیید قطعی نقص تحدیدی منحصراً نیازمند اندازه‌گیری ظرفیت تام ریه (TLC) است."),
+        ("Note: Spirometric restriction is presumptive and Total Lung Capacity (TLC) measurement is required to confirm a true restrictive defect.", "توجه: سوءظن به الگوی محدودیتی در اسپیرومتری قطعی نیست و اثبات واقعی آن نیازمند اندازه‌گیری ظرفیت تام ریه (TLC) است."),
+        ("Note: Patient's FEV1/FVC ratio is borderline near the physiological threshold (LLN/0.70).", "توجه: نسبت FEV1/FVC بیمار در محدوده مرزی و نزدیک به آستانه فیزیولوژیک (LLN یا ۰.۷۰) قرار دارد."),
+        ("'Normal Spirometry'", "«اسپیرومتری نرمال»"),
+        ("'Normal'", "«نرمال»"),
+        ("'Obstructive'", "«انسدادی»"),
+        ("'Suspected Restrictive'", "«مشکوک به محدودیتی»"),
+        ("'Restrictive'", "«محدودیتی»"),
+        ("'Mixed'", "«مختلط»"),
+        ("Normal Spirometry", "اسپیرومتری نرمال"),
+        ("Obstructive", "انسدادی"),
+        ("Suspected Restrictive", "مشکوک به محدودیتی"),
+        ("Restrictive", "محدودیتی"),
+        ("Mixed", "مختلط"),
+        ("Normal", "نرمال"),
+    ]
+    for en, fa in replacements:
+        text = text.replace(en, fa)
+    return text.strip()
+
+
 def _enrich_result(dual_result: dict, input_values: dict = None) -> dict:
     """افزودن برچسب‌های فارسی و متاداده برای تمپلیت وب‌اپ."""
     result = dict(dual_result)
@@ -125,6 +181,8 @@ def _enrich_result(dual_result: dict, input_values: dict = None) -> dict:
             "Very Severe": "بسیار شدید",
         }
         pe["severity_fa"] = severity_map.get(sev, sev) if sev else "—"
+        pe["clinical_note_fa"] = _translate_clinical_note(pe.get("clinical_note", ""))
+        pe["clinical_note"] = pe["clinical_note_fa"]
         result["physiological_engine"] = pe
 
     if "ml_surrogate" in result:
@@ -139,6 +197,16 @@ def _enrich_result(dual_result: dict, input_values: dict = None) -> dict:
         else:
             ml["pattern_fa"] = pattern_fa(ml_pat)
         result["ml_surrogate"] = ml
+
+    if "comparison" in result:
+        comp = dict(result["comparison"])
+        phys_fa = result.get("physiological_engine", {}).get("pattern_fa", "")
+        ml_fa = result.get("ml_surrogate", {}).get("pattern_fa", "")
+        comp["discrepancy_explanation_fa"] = _translate_discrepancy_explanation(
+            comp.get("discrepancy_explanation", ""), phys_fa, ml_fa
+        )
+        comp["discrepancy_explanation"] = comp["discrepancy_explanation_fa"]
+        result["comparison"] = comp
 
     # سازگاری با کدهای پیشین
     result["final_pattern"] = result.get("physiological_engine", {}).get(
