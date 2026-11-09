@@ -54,7 +54,7 @@
         </label>
         <label>
           وزن (کیلوگرم)
-          <input type="number" step="0.1" min="10" max="300" name="weight" id="weight" value="{{ form.weight }}" placeholder="پیش‌فرض: 70" />
+          <input type="number" step="0.1" min="10" max="300" name="weight" id="weight" value="{{ form.weight }}" />
         </label>
         <label>
           جنس زیستی *
@@ -73,12 +73,6 @@
             <option value="Other race, including multi-racial" {% if form.race == 'Other race, including multi-racial' %}selected{% endif %}>سایر نژادها / چندنژادی</option>
           </select>
         </label>
-        <div class="checkbox-field">
-          <label class="inline-checkbox">
-            <input type="checkbox" name="use_fixed_ratio" id="use_fixed_ratio" {% if form.use_fixed_ratio %}checked{% endif %} />
-            استفاده از نسبت ثابت GOLD (FEV1/FVC &lt; 0.70) به‌جای حد پایین نرمال (LLN)
-          </label>
-        </div>
         <div class="actions">
           <button type="submit">تفسیر اسپیرومتری</button>
         </div>
@@ -173,13 +167,6 @@
             <strong>تفسیر و یادداشت بالینی:</strong>
             <p>{{ result.physiological_engine.clinical_note }}</p>
           </div>
-
-          {% if 'Restrictive' in result.physiological_engine.pattern or 'محدود' in result.physiological_engine.pattern_fa %}
-          <div class="tlc-alert-box">
-            <strong>⚠ هشدار محدودیت حجمی (نیاز به ارزیابی TLC):</strong>
-            کاهش FVC در اسپیرومتری صرفاً یک الگوی احتمالی یا مشکوک را نشان می‌دهد. تأیید قطعی نقص تحدیدی منحصراً نیازمند اندازه‌گیری ظرفیت تام ریه (TLC) از طریق بادی‌پلتیسموگرافی یا رقت گاز است.
-          </div>
-          {% endif %}
         </div>
 
         <!-- ستون راست: مدل یادگیری ماشین XGBoost + SHAP -->
